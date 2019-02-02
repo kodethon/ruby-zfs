@@ -81,14 +81,17 @@ class ZFS
 	def create(opts={})
 		return nil if exist?
 
-		cmd = [ZFS.zfs_path].flatten + ['create']
+		cmd = [ZFS.zfs_path].flatten + ['create', '-o', 'canmount=noauto']
 		cmd << '-p' if opts[:parents]
 		cmd += ['-V', opts[:volume]] if opts[:volume]
 		cmd << name
 
 		out, status = Open3.capture2e(*cmd)
 		if status.success? and out.empty?
-			return self
+			cmd = [ZFS.zfs_path].flatten + ['mount', name]
+			out, status = Open3.capture2e(*cmd)
+			return self if status.success? and out.empty?
+			raise Exception, "something went wrong: #{out}, #{status}"
 		elsif out.match(/dataset already exists\n$/)
 			nil
 		else
